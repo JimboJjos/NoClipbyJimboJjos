@@ -1,0 +1,373 @@
+--========================================================
+-- NoClipV1 by JimboJjos
+--========================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--========================================================
+-- НАСТРОЙКИ
+--========================================================
+
+local NOCLIP_ON_COLOR = Color3.fromRGB(45, 180, 75)
+local NOCLIP_OFF_COLOR = Color3.fromRGB(180, 45, 45)
+local WINDOW_COLOR = Color3.fromRGB(25, 25, 30)
+
+local noclipEnabled = false
+local savedCollision = {}
+local noclipConnection = nil
+
+--========================================================
+-- УДАЛЯЕМ СТАРЫЙ GUI, ЕСЛИ ОН УЖЕ ЕСТЬ
+--========================================================
+
+local oldGui = playerGui:FindFirstChild("NoClipV1")
+if oldGui then
+	oldGui:Destroy()
+end
+
+--========================================================
+-- ОСНОВНОЙ GUI
+--========================================================
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "NoClipV1"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = playerGui
+
+--========================================================
+-- КНОПКА ОТКРЫТИЯ
+--========================================================
+
+local openButton = Instance.new("TextButton")
+openButton.Name = "OpenButton"
+openButton.Size = UDim2.fromOffset(42, 42)
+openButton.Position = UDim2.fromOffset(15, 150)
+openButton.BackgroundColor3 = WINDOW_COLOR
+openButton.BorderSizePixel = 0
+openButton.Text = "N"
+openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+openButton.TextSize = 18
+openButton.Font = Enum.Font.GothamBold
+openButton.AutoButtonColor = false
+openButton.Parent = gui
+
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 10)
+openCorner.Parent = openButton
+
+local openStroke = Instance.new("UIStroke")
+openStroke.Color = Color3.fromRGB(75, 75, 85)
+openStroke.Thickness = 1
+openStroke.Parent = openButton
+
+--========================================================
+-- ГЛАВНОЕ ОКНО
+--========================================================
+
+local frame = Instance.new("Frame")
+frame.Name = "Main"
+frame.Size = UDim2.fromOffset(280, 155)
+frame.Position = UDim2.fromOffset(65, 145)
+frame.BackgroundColor3 = WINDOW_COLOR
+frame.BorderSizePixel = 0
+frame.Visible = true
+frame.Parent = gui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 12)
+frameCorner.Parent = frame
+
+local frameStroke = Instance.new("UIStroke")
+frameStroke.Color = Color3.fromRGB(70, 70, 80)
+frameStroke.Thickness = 1
+frameStroke.Parent = frame
+
+--========================================================
+-- ЗАГОЛОВОК
+--========================================================
+
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, -55, 0, 30)
+title.Position = UDim2.fromOffset(12, 8)
+title.BackgroundTransparency = 1
+title.Text = "NoClipV1"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = frame
+
+--========================================================
+-- ПОДПИСЬ АВТОРА
+--========================================================
+
+local author = Instance.new("TextLabel")
+author.Name = "Author"
+author.Size = UDim2.new(1, -24, 0, 20)
+author.Position = UDim2.fromOffset(12, 36)
+author.BackgroundTransparency = 1
+author.Text = "by JimboJjos"
+author.TextColor3 = Color3.fromRGB(160, 160, 170)
+author.TextSize = 12
+author.Font = Enum.Font.Gotham
+author.TextXAlignment = Enum.TextXAlignment.Left
+author.Parent = frame
+
+--========================================================
+-- ПОДПИСЬ ИГРОКА
+--========================================================
+
+local playerLabel = Instance.new("TextLabel")
+playerLabel.Name = "PlayerName"
+playerLabel.Size = UDim2.new(1, -24, 0, 20)
+playerLabel.Position = UDim2.fromOffset(12, 57)
+playerLabel.BackgroundTransparency = 1
+playerLabel.Text = "Игрок: " .. player.Name
+playerLabel.TextColor3 = Color3.fromRGB(185, 185, 195)
+playerLabel.TextSize = 12
+playerLabel.Font = Enum.Font.Gotham
+playerLabel.TextXAlignment = Enum.TextXAlignment.Left
+playerLabel.Parent = frame
+
+--========================================================
+-- КНОПКА ЗАКРЫТИЯ
+--========================================================
+
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.fromOffset(28, 28)
+closeButton.Position = UDim2.new(1, -38, 0, 7)
+closeButton.BackgroundTransparency = 1
+closeButton.Text = "×"
+closeButton.TextColor3 = Color3.fromRGB(190, 190, 200)
+closeButton.TextSize = 22
+closeButton.Font = Enum.Font.GothamBold
+closeButton.AutoButtonColor = false
+closeButton.Parent = frame
+
+--========================================================
+-- КНОПКА NOCLIP
+--========================================================
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Name = "NoClipToggle"
+toggleButton.Size = UDim2.new(1, -24, 0, 42)
+toggleButton.Position = UDim2.fromOffset(12, 85)
+toggleButton.BackgroundColor3 = NOCLIP_OFF_COLOR
+toggleButton.BorderSizePixel = 0
+toggleButton.Text = "NoClip: OFF"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 15
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.AutoButtonColor = false
+toggleButton.Parent = frame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleButton
+
+--========================================================
+-- СТАТУС
+--========================================================
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "Status"
+statusLabel.Size = UDim2.new(1, -24, 0, 20)
+statusLabel.Position = UDim2.fromOffset(12, 130)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Статус: ВЫКЛЮЧЕН"
+statusLabel.TextColor3 = NOCLIP_OFF_COLOR
+statusLabel.TextSize = 11
+statusLabel.Font = Enum.Font.GothamMedium
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Parent = frame
+
+--========================================================
+-- ОБНОВЛЕНИЕ GUI
+--========================================================
+
+local function updateGUI()
+	if noclipEnabled then
+		toggleButton.Text = "NoClip: ON"
+		toggleButton.BackgroundColor3 = NOCLIP_ON_COLOR
+
+		statusLabel.Text = "Статус: ВКЛЮЧЕН"
+		statusLabel.TextColor3 = NOCLIP_ON_COLOR
+	else
+		toggleButton.Text = "NoClip: OFF"
+		toggleButton.BackgroundColor3 = NOCLIP_OFF_COLOR
+
+		statusLabel.Text = "Статус: ВЫКЛЮЧЕН"
+		statusLabel.TextColor3 = NOCLIP_OFF_COLOR
+	end
+end
+
+--========================================================
+-- СОХРАНЕНИЕ COLLISION
+--========================================================
+
+local function saveCollision(character)
+	savedCollision = {}
+
+	for _, object in ipairs(character:GetDescendants()) do
+		if object:IsA("BasePart") then
+			savedCollision[object] = object.CanCollide
+		end
+	end
+end
+
+--========================================================
+-- ВОССТАНОВЛЕНИЕ COLLISION
+--========================================================
+
+local function restoreCollision(character)
+	for _, object in ipairs(character:GetDescendants()) do
+		if object:IsA("BasePart") then
+			if savedCollision[object] ~= nil then
+				object.CanCollide = savedCollision[object]
+			end
+		end
+	end
+
+	savedCollision = {}
+end
+
+--========================================================
+-- ПРИМЕНЕНИЕ NOCLIP
+--========================================================
+
+local function applyNoclip(character)
+	for _, object in ipairs(character:GetDescendants()) do
+		if object:IsA("BasePart") then
+			object.CanCollide = false
+		end
+	end
+end
+
+--========================================================
+-- ВКЛЮЧЕНИЕ NOCLIP
+--========================================================
+
+local function enableNoclip()
+	local character = player.Character
+
+	if not character then
+		return
+	end
+
+	saveCollision(character)
+	noclipEnabled = true
+
+	if noclipConnection then
+		noclipConnection:Disconnect()
+		noclipConnection = nil
+	end
+
+	noclipConnection = RunService.Stepped:Connect(function()
+		if not noclipEnabled then
+			return
+		end
+
+		local currentCharacter = player.Character
+
+		if currentCharacter then
+			applyNoclip(currentCharacter)
+		end
+	end)
+
+	applyNoclip(character)
+	updateGUI()
+end
+
+--========================================================
+-- ВЫКЛЮЧЕНИЕ NOCLIP
+--========================================================
+
+local function disableNoclip()
+	noclipEnabled = false
+
+	if noclipConnection then
+		noclipConnection:Disconnect()
+		noclipConnection = nil
+	end
+
+	local character = player.Character
+
+	if character then
+		restoreCollision(character)
+	end
+
+	updateGUI()
+end
+
+--========================================================
+-- ПЕРЕКЛЮЧАТЕЛЬ
+--========================================================
+
+toggleButton.MouseButton1Click:Connect(function()
+	if noclipEnabled then
+		disableNoclip()
+	else
+		enableNoclip()
+	end
+end)
+
+--========================================================
+-- ОТКРЫТЬ / ЗАКРЫТЬ
+--========================================================
+
+openButton.MouseButton1Click:Connect(function()
+	frame.Visible = not frame.Visible
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+	frame.Visible = false
+end)
+
+--========================================================
+-- КЛАВИША N
+--========================================================
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then
+		return
+	end
+
+	if input.KeyCode == Enum.KeyCode.N then
+		frame.Visible = not frame.Visible
+	end
+end)
+
+--========================================================
+-- РЕСПАВН
+--========================================================
+
+player.CharacterAdded:Connect(function(character)
+	savedCollision = {}
+
+	local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
+
+	if not humanoidRootPart then
+		return
+	end
+
+	task.wait(0.2)
+
+	if noclipEnabled then
+		saveCollision(character)
+		applyNoclip(character)
+	end
+end)
+
+--========================================================
+-- ПЕРВОНАЧАЛЬНОЕ СОСТОЯНИЕ
+--========================================================
+
+updateGUI()
